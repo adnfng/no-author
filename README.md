@@ -41,18 +41,9 @@ Human `Co-authored-by` trailers are preserved.
 
 ## Anonymous global counter
 
-When `no-author` fixes a commit, its `post-commit` hook sends:
-
-```json
-{
-  "eventId": "a random UUID",
-  "version": "0.1.0"
-}
-```
-
-The event is sent only after Git confirms the commit succeeded. Failed requests
-are retained inside `.git` and retried after a later commit. The server uses the
-random event ID for deduplication.
+When `no-author` fixes a commit, its `post-commit` hook sends an empty,
+best-effort request after Git confirms the commit succeeded. The server
+increments one Redis key.
 
 The application does not send or store repository names, commit hashes, commit
 messages, author details, email addresses, usernames, or source code.
@@ -77,9 +68,8 @@ Add the global counter to any GitHub README:
 ![no-author](https://no-author.vercel.app/badge.svg)
 ```
 
-The counter is an indicative community metric. A public client cannot contain a
-secret, so the endpoint can be rate-limited and deduplicated but cannot be made
-completely tamper-proof.
+The counter is an indicative community metric. Failed requests are not retried,
+and a public endpoint cannot be made completely tamper-proof.
 
 ## Commands
 
@@ -101,19 +91,18 @@ change Git author and committer identity fields.
 
 ## Deploy the counter
 
-The counter is a separate Vercel Functions project in `server/`. It uses
-Upstash Redis so increments and duplicate detection happen atomically.
+The counter is a separate Vercel Functions project in `server/`. It stores one
+number in Upstash Redis.
 
 ```bash
 cd server
 vercel deploy -y
-vercel install upstash --name no-author-counter --plan free -e production -e preview
 ```
 
-The integration supplies `UPSTASH_REDIS_REST_URL` and
-`UPSTASH_REDIS_REST_TOKEN`; no schema or migration is required. Redeploy after
-connecting it. Vercel provides a `vercel.app` URL, so a custom domain is not
-required.
+Create a free Redis database at [Upstash](https://console.upstash.com), then add
+`UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to Vercel. No schema or
+migration is required. Vercel provides a `vercel.app` URL, so a custom domain
+is not required.
 
 The service exposes:
 

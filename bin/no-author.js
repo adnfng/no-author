@@ -2,11 +2,9 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
-const crypto = require('node:crypto')
 const { execFileSync } = require('node:child_process')
 
 const HOOK_MARKER = 'NO_AUTHOR_HOOK'
-const VERSION = '0.1.0'
 const DEFAULT_ENDPOINT = 'https://no-author.vercel.app/api/fixed'
 
 const DEFAULT_EMAILS = new Set([
@@ -108,12 +106,8 @@ function privateGitPath(root, name) {
   return path.resolve(root, gitPath)
 }
 
-function queuePath(root) {
-  return privateGitPath(root, 'no-author-events.json')
-}
-
 function pendingPath(root) {
-  return privateGitPath(root, 'no-author-pending.json')
+  return privateGitPath(root, 'no-author-pending')
 }
 
 function telemetryEnabled(root) {
@@ -127,48 +121,13 @@ function telemetryEnabled(root) {
   )
 }
 
-function readQueue(root) {
-  try {
-    const queue = JSON.parse(fs.readFileSync(queuePath(root), 'utf8'))
-    return Array.isArray(queue) ? queue : []
-  } catch {
-    return []
-  }
-}
-
-function writeQueue(root, queue) {
-  const file = queuePath(root)
-
-  if (queue.length === 0) {
-    fs.rmSync(file, { force: true })
-    return
-  }
-
-  fs.writeFileSync(file, `${JSON.stringify(queue)}\n`, { mode: 0o600 })
-}
-
-function messageFingerprint(message) {
-  return crypto
-    .createHash('sha256')
-    .update(message.replace(/\r\n/g, '\n').trimEnd())
-    .digest('hex')
-}
-
-function prepareAnonymousEvent(root, message) {
+function prepareAnonymousEvent(root) {
   if (!telemetryEnabled(root)) return
 
-  fs.writeFileSync(
-    pendingPath(root),
-    `${JSON.stringify({
-      eventId: crypto.randomUUID(),
-      version: VERSION,
-      messageFingerprint: messageFingerprint(message),
-    })}\n`,
-    { mode: 0o600 },
-  )
+  fs.writeFileSync(pendingPath(root), '', { mode: 0o600 })
 }
 
-function confirmAnonymousEvent(root) {
+async function reportAnonymousEvent(root) {
   const file = pendingPath(root)
 
   if (!telemetryEnabled(root)) {
@@ -176,50 +135,14 @@ function confirmAnonymousEvent(root) {
     return
   }
 
-  let pending
+  if (!fs.existsSync(file)) return
+  fs.rmSync(file, { force: true })
 
   try {
-    pending = JSON.parse(fs.readFileSync(file, 'utf8'))
-  } catch {
-    return
-  } finally {
-    fs.rmSync(file, { force: true })
-  }
-
-  const committedMessage = execFileSync(
-    'git',
-    ['log', '-1', '--format=%B'],
-    { cwd: root, encoding: 'utf8' },
-  )
-
-  if (messageFingerprint(committedMessage) !== pending.messageFingerprint) return
-
-  const queue = readQueue(root)
-  queue.push({ eventId: pending.eventId, version: pending.version })
-  writeQueue(root, queue.slice(-100))
-}
-
-async function reportOneEvent(root) {
-  if (!telemetryEnabled(root)) return
-
-  const queue = readQueue(root)
-  const event = queue[0]
-  if (!event) return
-
-  try {
-    const response = await fetch(
-      process.env.NO_AUTHOR_ENDPOINT || DEFAULT_ENDPOINT,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(event),
-        signal: AbortSignal.timeout(1500),
-      },
-    )
-
-    if (response.ok || response.status === 409) {
-      writeQueue(root, queue.slice(1))
-    }
+    await fetch(process.env.NO_AUTHOR_ENDPOINT || DEFAULT_ENDPOINT, {
+      method: 'POST',
+      signal: AbortSignal.timeout(1500),
+    })
   } catch {
     // Telemetry must never block or fail a commit.
   }
@@ -230,6 +153,7 @@ function stripFile(messagePath, track = true) {
 
   const root = repositoryRoot()
   const config = loadConfig(root)
+  fs.rmSync(pendingPath(root), { force: true })
   const original = fs.readFileSync(messagePath, 'utf8')
   const cleaned = cleanMessage(original, config)
 
@@ -238,7 +162,7 @@ function stripFile(messagePath, track = true) {
   fs.writeFileSync(messagePath, cleaned.message)
 
   if (track) {
-    prepareAnonymousEvent(root, cleaned.message)
+    prepareAnonymousEvent(root)
     console.log(
       `no-author: removed ${cleaned.removed} AI attribution line(s).`,
     )
@@ -338,8 +262,7 @@ async function main() {
   }
   if (hookName === 'post-commit') {
     const root = repositoryRoot()
-    confirmAnonymousEvent(root)
-    await reportOneEvent(root)
+    await reportAnonymousEvent(root)
     return
   }
 
@@ -359,8 +282,7 @@ async function main() {
     case 'report':
       {
         const root = repositoryRoot()
-        confirmAnonymousEvent(root)
-        await reportOneEvent(root)
+        await reportAnonymousEvent(root)
       }
       break
     case '--help':
