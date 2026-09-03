@@ -6,13 +6,23 @@ Remove AI co-author trailers before Git creates a commit.
 
 ## Install
 
+One command covers every Git repository on your machine:
+
 ```bash
-npm install --save-dev no-author
+npx no-author install --global
+```
+
+That writes standalone hooks to `~/.no-author/hooks` and points Git at them with
+`core.hooksPath`. You do not need to add `no-author` as a project dependency.
+
+For a single repository instead:
+
+```bash
 npx no-author install
 ```
 
-`install` creates standalone `commit-msg` and `post-commit` hooks. It does not
-overwrite existing hooks.
+Neither command overwrites an existing hook it did not create. `--global` will
+not replace a `core.hooksPath` that already points somewhere else.
 
 ## What it removes
 
@@ -74,6 +84,7 @@ and a public endpoint cannot be made completely tamper-proof.
 ## Commands
 
 ```bash
+no-author install --global
 no-author install
 no-author strip .git/COMMIT_EDITMSG
 no-author check

@@ -10,9 +10,6 @@ export default async function handler(request, response) {
   const fixedCommits = await getTotal()
 
   response.setHeader('Content-Type', 'image/svg+xml; charset=utf-8')
-  response.setHeader(
-    'Cache-Control',
-    'public, max-age=60, s-maxage=300, stale-while-revalidate=86400',
-  )
+  response.setHeader('Cache-Control', 'no-store')
   return response.status(200).send(badgeSvg(fixedCommits))
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('node:fs')
+const os = require('node:os')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 
@@ -171,13 +172,28 @@ function stripFile(messagePath, track = true) {
   return cleaned.removed
 }
 
-function install() {
-  const root = repositoryRoot()
-  const hooksPath = execFileSync('git', ['rev-parse', '--git-path', 'hooks'], {
-    cwd: root,
-    encoding: 'utf8',
-  }).trim()
-  const hooksDirectory = path.resolve(root, hooksPath)
+function globalHooksDirectory() {
+  return path.join(os.homedir(), '.no-author', 'hooks')
+}
+
+function currentGlobalHooksPath() {
+  try {
+    return execFileSync('git', ['config', '--global', '--get', 'core.hooksPath'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  } catch {
+    return ''
+  }
+}
+
+function expandHome(value) {
+  if (value === '~') return os.homedir()
+  if (value.startsWith('~/')) return path.join(os.homedir(), value.slice(2))
+  return value
+}
+
+function writeHooks(hooksDirectory) {
   const hookPaths = ['commit-msg', 'post-commit'].map((name) =>
     path.join(hooksDirectory, name),
   )
@@ -194,8 +210,7 @@ function install() {
   }
 
   fs.mkdirSync(hooksDirectory, { recursive: true })
-  const source = fs.readFileSync(__filename, 'utf8')
-  const hookSource = source.replace(
+  const hookSource = fs.readFileSync(__filename, 'utf8').replace(
     '#!/usr/bin/env node',
     `#!/usr/bin/env node\n// ${HOOK_MARKER}`,
   )
@@ -205,8 +220,36 @@ function install() {
     fs.chmodSync(hookPath, 0o755)
     console.log(`Installed ${hookPath}`)
   }
+}
 
-  if (telemetryEnabled(root)) {
+function install({ global: isGlobal = false } = {}) {
+  if (isGlobal) {
+    const hooksDirectory = globalHooksDirectory()
+    const existing = currentGlobalHooksPath()
+
+    if (
+      existing &&
+      path.resolve(expandHome(existing)) !== path.resolve(hooksDirectory)
+    ) {
+      throw new Error(
+        `git already uses a global hooks path (${existing}). Point it at ${hooksDirectory} or install per repository with no-author install.`,
+      )
+    }
+
+    writeHooks(hooksDirectory)
+    execFileSync('git', ['config', '--global', 'core.hooksPath', hooksDirectory])
+    console.log('Watching every Git repository on this machine.')
+  } else {
+    const root = repositoryRoot()
+    const hooksPath = execFileSync('git', ['rev-parse', '--git-path', 'hooks'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).trim()
+    writeHooks(path.resolve(root, hooksPath))
+    console.log('Watching this repository only.')
+  }
+
+  if (telemetryEnabled(isGlobal ? undefined : repositoryRoot())) {
     console.log(
       'Anonymous fixed-commit events are enabled. Set NO_AUTHOR_TELEMETRY=0 to disable them.',
     )
@@ -247,6 +290,7 @@ function printHelp() {
   console.log(`no-author
 
 Usage:
+  no-author install --global
   no-author install
   no-author strip <commit-message-file>
   no-author check [git-range]
@@ -271,7 +315,7 @@ async function main() {
   switch (command) {
     case 'install':
     case 'init':
-      install()
+      install({ global: process.argv.includes('--global') })
       break
     case 'strip':
       stripFile(argument)
