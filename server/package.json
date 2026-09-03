@@ -1,0 +1,14 @@
+{
+  "name": "no-author-counter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check api/fixed.js && node --check api/stats.js && node --check api/badge.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.38.3"
+  }
+}
