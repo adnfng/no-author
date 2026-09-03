@@ -4,7 +4,7 @@ const fs = require('node:fs')
 const http = require('node:http')
 const os = require('node:os')
 const path = require('node:path')
-const { execFileSync } = require('node:child_process')
+const { execFileSync, spawn } = require('node:child_process')
 const {
   cleanMessage,
   confirmAnonymousEvent,
@@ -15,6 +15,22 @@ const {
 } = require('../bin/no-author.js')
 
 const emptyConfig = { emails: new Set(), lines: new Set() }
+
+function run(command, args, options) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, options)
+    let stdout = ''
+    let stderr = ''
+
+    child.stdout.on('data', (chunk) => (stdout += chunk))
+    child.stderr.on('data', (chunk) => (stderr += chunk))
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code === 0) resolve({ stdout, stderr })
+      else reject(new Error(`${command} exited with ${code}: ${stderr}`))
+    })
+  })
+}
 
 test('removes known AI co-author trailers', () => {
   const message = `Fix the thing
@@ -125,5 +141,73 @@ test('keeps an anonymous event queued until the counter accepts it', async () =>
 
     if (previousTelemetry === undefined) delete process.env.NO_AUTHOR_TELEMETRY
     else process.env.NO_AUTHOR_TELEMETRY = previousTelemetry
+  }
+})
+
+test('installed Git hooks clean and report a real commit', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'no-author-hook-'))
+  const executable = path.resolve(__dirname, '../bin/no-author.js')
+  let requests = 0
+  const server = http.createServer((request, response) => {
+    requests += 1
+    assert.equal(request.method, 'POST')
+    assert.equal(request.headers['content-length'], '0')
+    response.writeHead(201).end()
+  })
+
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+  try {
+    const gitEnvironment = {
+      ...process.env,
+      GIT_CONFIG_GLOBAL: '/dev/null',
+      GIT_CONFIG_NOSYSTEM: '1',
+      NO_AUTHOR_ENDPOINT: `http://127.0.0.1:${server.address().port}`,
+    }
+
+    execFileSync('git', ['init', '--quiet'], { cwd: directory, env: gitEnvironment })
+    execFileSync('git', ['config', 'user.name', 'Noa Test'], {
+      cwd: directory,
+      env: gitEnvironment,
+    })
+    execFileSync('git', ['config', 'user.email', 'noa@example.com'], {
+      cwd: directory,
+      env: gitEnvironment,
+    })
+    execFileSync(process.execPath, [executable, 'install'], {
+      cwd: directory,
+      env: gitEnvironment,
+      stdio: 'ignore',
+    })
+    fs.writeFileSync(path.join(directory, 'README.md'), '# Test\n')
+    execFileSync('git', ['add', 'README.md'], {
+      cwd: directory,
+      env: gitEnvironment,
+    })
+
+    await run(
+      'git',
+      [
+        'commit',
+        '--quiet',
+        '-m',
+        'Test commit',
+        '--trailer',
+        'Co-authored-by: Cursor <cursoragent@cursor.com>',
+      ],
+      { cwd: directory, env: gitEnvironment },
+    )
+
+    const message = execFileSync('git', ['log', '-1', '--format=%B'], {
+      cwd: directory,
+      env: gitEnvironment,
+      encoding: 'utf8',
+    })
+    assert.equal(message, 'Test commit\n\n')
+    assert.equal(requests, 1)
+    assert.equal(readQueuedEventCount(directory), 0)
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+    fs.rmSync(directory, { recursive: true, force: true })
   }
 })

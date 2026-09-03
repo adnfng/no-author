@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 const fs = require('node:fs')
+const http = require('node:http')
+const https = require('node:https')
 const os = require('node:os')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
@@ -177,16 +179,46 @@ async function reportAnonymousEvent(root) {
   const queuedEvents = readQueuedEventCount(root)
   if (queuedEvents === 0) return
 
-  try {
-    const response = await fetch(process.env.NO_AUTHOR_ENDPOINT || DEFAULT_ENDPOINT, {
-      method: 'POST',
-      signal: AbortSignal.timeout(REPORT_TIMEOUT_MS),
-    })
+  const delivered = await sendEmptyPost(
+    process.env.NO_AUTHOR_ENDPOINT || DEFAULT_ENDPOINT,
+  )
 
-    if (response.ok) writeQueuedEventCount(root, queuedEvents - 1)
-  } catch {
-    // Telemetry must never block or fail a commit.
-  }
+  if (delivered) writeQueuedEventCount(root, queuedEvents - 1)
+}
+
+function sendEmptyPost(endpoint) {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (delivered) => {
+      if (settled) return
+      settled = true
+      resolve(delivered)
+    }
+
+    try {
+      const url = new URL(endpoint)
+      const transport = url.protocol === 'https:' ? https : http
+      const request = transport.request(
+        url,
+        {
+          method: 'POST',
+          headers: { 'content-length': '0' },
+        },
+        (response) => {
+          response.resume()
+          finish(
+            response.statusCode >= 200 && response.statusCode < 300,
+          )
+        },
+      )
+
+      request.setTimeout(REPORT_TIMEOUT_MS, () => request.destroy())
+      request.on('error', () => finish(false))
+      request.end()
+    } catch {
+      finish(false)
+    }
+  })
 }
 
 function stripFile(messagePath, track = true) {
