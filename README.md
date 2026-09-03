@@ -1,5 +1,5 @@
 <p>
-  <img src="https://raw.githubusercontent.com/adnfng/no-author/main/web/public/Logo.svg" alt="Noa" width="180">
+  <img src="https://noa.nomo.md/Logo.svg" alt="Noa" width="180">
 </p>
 
 # Noa
@@ -10,7 +10,7 @@ Noa is a small Git hook that removes AI-generated attribution before Git writes
 a commit. It recognizes Cursor, Claude Code, Codex, Gemini, Aider, and GitHub
 Copilot. Human co-authors are left alone.
 
-[Website](https://no-author.vercel.app/)
+[Website](https://noa.nomo.md/)
 
 ## Install
 
