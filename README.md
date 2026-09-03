@@ -2,7 +2,7 @@
   <img src="https://noa.nomo.md/Logo.svg" alt="Noa" width="180">
 </p>
 
-# Noa.
+# Noa
 
 Keep bots out of your commits.
 
