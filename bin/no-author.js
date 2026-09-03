@@ -5,7 +5,7 @@ const http = require('node:http')
 const https = require('node:https')
 const os = require('node:os')
 const path = require('node:path')
-const { execFileSync } = require('node:child_process')
+const { execFile, execFileSync } = require('node:child_process')
 
 const HOOK_MARKER = 'NO_AUTHOR_HOOK'
 const DEFAULT_ENDPOINT = 'https://no-author.vercel.app/api/fixed'
@@ -179,11 +179,38 @@ async function reportAnonymousEvent(root) {
   const queuedEvents = readQueuedEventCount(root)
   if (queuedEvents === 0) return
 
-  const delivered = await sendEmptyPost(
+  let delivered = await sendEmptyPost(
     process.env.NO_AUTHOR_ENDPOINT || DEFAULT_ENDPOINT,
   )
 
+  if (!delivered) {
+    delivered = await sendWithCurl(
+      process.env.NO_AUTHOR_ENDPOINT || DEFAULT_ENDPOINT,
+    )
+  }
+
   if (delivered) writeQueuedEventCount(root, queuedEvents - 1)
+}
+
+function sendWithCurl(endpoint) {
+  return new Promise((resolve) => {
+    execFile(
+      'curl',
+      [
+        '--fail',
+        '--silent',
+        '--request',
+        'POST',
+        '--max-time',
+        String(REPORT_TIMEOUT_MS / 1000),
+        '--header',
+        'content-length: 0',
+        endpoint,
+      ],
+      { timeout: REPORT_TIMEOUT_MS + 1000 },
+      (error) => resolve(!error),
+    )
+  })
 }
 
 function sendEmptyPost(endpoint) {

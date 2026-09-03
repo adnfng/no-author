@@ -152,6 +152,13 @@ test('installed Git hooks clean and report a real commit', async () => {
     requests += 1
     assert.equal(request.method, 'POST')
     assert.equal(request.headers['content-length'], '0')
+
+    if (requests === 1) {
+      request.socket.destroy()
+      return
+    }
+
+    assert.match(request.headers['user-agent'], /^curl\//)
     response.writeHead(201).end()
   })
 
@@ -204,7 +211,7 @@ test('installed Git hooks clean and report a real commit', async () => {
       encoding: 'utf8',
     })
     assert.equal(message, 'Test commit\n\n')
-    assert.equal(requests, 1)
+    assert.equal(requests, 2)
     assert.equal(readQueuedEventCount(directory), 0)
   } finally {
     await new Promise((resolve) => server.close(resolve))
