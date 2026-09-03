@@ -1,43 +1,57 @@
-# no-author
+<p>
+  <img src="https://raw.githubusercontent.com/adnfng/no-author/main/web/public/Logo.svg" alt="Noa" width="180">
+</p>
 
-![no-author](https://no-author.vercel.app/badge.svg)
+# Noa
 
-Remove AI co-author trailers before Git creates a commit.
+Keep bots out of your commits.
+
+Noa is a small Git hook that removes AI-generated attribution before Git writes
+a commit. It recognizes Cursor, Claude Code, Codex, Gemini, Aider, and GitHub
+Copilot. Human co-authors are left alone.
+
+[Website](https://no-author.vercel.app/)
 
 ## Install
 
-One command covers every Git repository on your machine:
+Install Noa once for every Git repository on your machine:
 
 ```bash
 npx no-author install --global
 ```
 
-That writes standalone hooks to `~/.no-author/hooks` and points Git at them with
-`core.hooksPath`. You do not need to add `no-author` as a project dependency.
-
-For a single repository instead:
+Or install it in the current repository only:
 
 ```bash
 npx no-author install
 ```
 
-Neither command overwrites an existing hook it did not create. `--global` will
-not replace a `core.hooksPath` that already points somewhere else.
+No package is added to your project. Noa writes a Git hook and then gets out of
+the way. It will not overwrite a hook it did not create.
 
-## What it removes
+## Usage
 
-`no-author` matches bot email addresses, not display names, so a human named
-Claude or Gemini is left alone.
+Commit as usual. Noa removes matching `Co-authored-by` trailers automatically.
 
-- Cursor — `cursoragent@cursor.com`
-- Claude Code — `noreply@anthropic.com`
-- Codex — `noreply@openai.com`
-- Gemini — `gemini-code-assist@google.com` and `gemini-cli@google.com`
-- Aider — `aider@aider.chat` and `noreply@aider.dev`
-- GitHub Copilot — numeric `Copilot[bot]` noreply addresses
-- Claude Code generated-by and session attribution lines
+Check existing history without changing it:
 
-Add private or future harness identities with `.no-author.json`:
+```bash
+npx no-author check
+```
+
+Check a specific branch:
+
+```bash
+npx no-author check main
+```
+
+`check` exits with status 1 when it finds AI attribution, so it can also be used
+in CI.
+
+## Configuration
+
+Noa matches known bot email addresses, not display names. Add another identity
+or attribution line with a `.no-author.json` file:
 
 ```json
 {
@@ -47,18 +61,13 @@ Add private or future harness identities with `.no-author.json`:
 }
 ```
 
-Human `Co-authored-by` trailers are preserved.
+## Privacy
 
-## Anonymous global counter
+When Noa cleans a commit, it sends an empty request that increments the public
+counter on the website. It does not send code, commit messages, repository
+names, hashes, usernames, or email addresses. Failed requests are not retried.
 
-When `no-author` fixes a commit, its `post-commit` hook sends an empty,
-best-effort request after Git confirms the commit succeeded. The server
-increments one Redis key.
-
-The application does not send or store repository names, commit hashes, commit
-messages, author details, email addresses, usernames, or source code.
-
-Disable reporting for a repository:
+Turn the counter request off for a repository:
 
 ```json
 {
@@ -66,72 +75,9 @@ Disable reporting for a repository:
 }
 ```
 
-Or disable it for a process:
+Noa changes commit-message attribution only. It does not rewrite existing
+history or change Git author and committer identity fields.
 
-```bash
-NO_AUTHOR_TELEMETRY=0 git commit
-```
+## License
 
-Add the global counter to any GitHub README:
-
-```md
-![no-author](https://no-author.vercel.app/badge.svg)
-```
-
-The counter is an indicative community metric. Failed requests are not retried,
-and a public endpoint cannot be made completely tamper-proof.
-
-## Commands
-
-```bash
-no-author install --global
-no-author install
-no-author strip .git/COMMIT_EDITMSG
-no-author check
-no-author check main
-no-author report
-```
-
-`check` exits with status 1 when matching attribution already exists in the
-selected Git history, making it suitable for CI.
-
-## Scope
-
-This cleans commit-message attribution. It does not rewrite existing history or
-change Git author and committer identity fields.
-
-## Deploy the counter
-
-The counter is a separate Vercel Functions project in `server/`. It stores one
-number in Upstash Redis.
-
-```bash
-cd server
-vercel deploy -y
-```
-
-Create a free Redis database at [Upstash](https://console.upstash.com), then add
-`UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to Vercel. No schema or
-migration is required. Vercel provides a `vercel.app` URL, so a custom domain
-is not required.
-
-The service exposes:
-
-- `POST /api/fixed`
-- `GET /api/stats`
-- `GET /badge.svg`
-
-Before publishing the npm package, set `DEFAULT_ENDPOINT` in
-`bin/no-author.js` to the final production deployment URL.
-
-## Sources
-
-The defaults are based on current public documentation and implementations:
-
-- [Claude Code attribution settings](https://code.claude.com/docs/en/settings-reference)
-- [Codex commit attribution implementation](https://github.com/openai/codex/blob/main/codex-rs/core/src/commit_attribution.rs)
-- [Aider Git attribution options](https://aider.chat/docs/config/options.html)
-- [Agent co-author identity registry](https://github.com/rosylilly/commitlint-config-agent-coauthor)
-
-Some tools make attribution configurable. Use `.no-author.json` when a harness
-uses a custom identity.
+Licensed under the MIT License.

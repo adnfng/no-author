@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check api/fixed.js && node --check api/stats.js && node --check api/badge.js"
+    "check": "node --check api/fixed.js && node --check api/stats.js"
   },
   "engines": {
     "node": ">=20"

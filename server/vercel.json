@@ -4,10 +4,6 @@
     {
       "source": "/",
       "destination": "/api/stats"
-    },
-    {
-      "source": "/badge.svg",
-      "destination": "/api/badge"
     }
   ]
 }

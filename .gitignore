@@ -1,2 +1,5 @@
 node_modules
 *.tgz
+.DS_Store
+web/dist
+web/public/fonts

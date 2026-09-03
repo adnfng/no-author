@@ -2,6 +2,14 @@
   "name": "no-author",
   "version": "0.1.0",
   "description": "Remove AI co-author trailers from Git commit messages.",
+  "homepage": "https://no-author.vercel.app/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adnfng/no-author.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adnfng/no-author/issues"
+  },
   "bin": {
     "no-author": "bin/no-author.js"
   },
