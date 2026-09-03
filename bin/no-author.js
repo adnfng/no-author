@@ -7,6 +7,7 @@ const { execFileSync } = require('node:child_process')
 
 const HOOK_MARKER = 'NO_AUTHOR_HOOK'
 const DEFAULT_ENDPOINT = 'https://no-author.vercel.app/api/fixed'
+const REPORT_TIMEOUT_MS = 5000
 
 const DEFAULT_EMAILS = new Set([
   'cursoragent@cursor.com',
@@ -111,6 +112,10 @@ function pendingPath(root) {
   return privateGitPath(root, 'no-author-pending')
 }
 
+function queuePath(root) {
+  return privateGitPath(root, 'no-author-queue')
+}
+
 function telemetryEnabled(root) {
   const environmentAllowsTelemetry = !['0', 'false', 'off'].includes(
     String(process.env.NO_AUTHOR_TELEMETRY || '').toLowerCase(),
@@ -128,22 +133,57 @@ function prepareAnonymousEvent(root) {
   fs.writeFileSync(pendingPath(root), '', { mode: 0o600 })
 }
 
-async function reportAnonymousEvent(root) {
+function readQueuedEventCount(root) {
+  try {
+    const count = Number.parseInt(fs.readFileSync(queuePath(root), 'utf8'), 10)
+    return Number.isSafeInteger(count) && count > 0 ? count : 0
+  } catch {
+    return 0
+  }
+}
+
+function writeQueuedEventCount(root, count) {
+  const file = queuePath(root)
+
+  if (count <= 0) {
+    fs.rmSync(file, { force: true })
+    return
+  }
+
+  fs.writeFileSync(file, `${count}\n`, { mode: 0o600 })
+}
+
+function confirmAnonymousEvent(root) {
   const file = pendingPath(root)
 
   if (!telemetryEnabled(root)) {
     fs.rmSync(file, { force: true })
+    fs.rmSync(queuePath(root), { force: true })
     return
   }
 
   if (!fs.existsSync(file)) return
   fs.rmSync(file, { force: true })
+  writeQueuedEventCount(root, readQueuedEventCount(root) + 1)
+}
+
+async function reportAnonymousEvent(root) {
+  if (!telemetryEnabled(root)) {
+    fs.rmSync(pendingPath(root), { force: true })
+    fs.rmSync(queuePath(root), { force: true })
+    return
+  }
+
+  const queuedEvents = readQueuedEventCount(root)
+  if (queuedEvents === 0) return
 
   try {
-    await fetch(process.env.NO_AUTHOR_ENDPOINT || DEFAULT_ENDPOINT, {
+    const response = await fetch(process.env.NO_AUTHOR_ENDPOINT || DEFAULT_ENDPOINT, {
       method: 'POST',
-      signal: AbortSignal.timeout(1500),
+      signal: AbortSignal.timeout(REPORT_TIMEOUT_MS),
     })
+
+    if (response.ok) writeQueuedEventCount(root, queuedEvents - 1)
   } catch {
     // Telemetry must never block or fail a commit.
   }
@@ -306,6 +346,7 @@ async function main() {
   }
   if (hookName === 'post-commit') {
     const root = repositoryRoot()
+    confirmAnonymousEvent(root)
     await reportAnonymousEvent(root)
     return
   }
@@ -326,6 +367,7 @@ async function main() {
     case 'report':
       {
         const root = repositoryRoot()
+        confirmAnonymousEvent(root)
         await reportAnonymousEvent(root)
       }
       break
@@ -346,4 +388,12 @@ if (require.main === module) {
   })
 }
 
-module.exports = { cleanMessage, isBlockedEmail, telemetryEnabled }
+module.exports = {
+  cleanMessage,
+  confirmAnonymousEvent,
+  isBlockedEmail,
+  prepareAnonymousEvent,
+  readQueuedEventCount,
+  reportAnonymousEvent,
+  telemetryEnabled,
+}

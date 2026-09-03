@@ -1,6 +1,6 @@
 {
   "name": "no-author",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Remove AI co-author trailers from Git commit messages.",
   "homepage": "https://noa.nomo.md/",
   "repository": {

@@ -1,10 +1,16 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const http = require('node:http')
 const os = require('node:os')
 const path = require('node:path')
+const { execFileSync } = require('node:child_process')
 const {
   cleanMessage,
+  confirmAnonymousEvent,
+  prepareAnonymousEvent,
+  readQueuedEventCount,
+  reportAnonymousEvent,
   telemetryEnabled,
 } = require('../bin/no-author.js')
 
@@ -80,5 +86,44 @@ test('allows repository-level telemetry opt-out', () => {
     assert.equal(telemetryEnabled(directory), false)
   } finally {
     fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('keeps an anonymous event queued until the counter accepts it', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'no-author-'))
+  const previousEndpoint = process.env.NO_AUTHOR_ENDPOINT
+  const previousTelemetry = process.env.NO_AUTHOR_TELEMETRY
+  let server
+
+  execFileSync('git', ['init', '--quiet', directory])
+  delete process.env.NO_AUTHOR_TELEMETRY
+
+  try {
+    prepareAnonymousEvent(directory)
+    confirmAnonymousEvent(directory)
+    assert.equal(readQueuedEventCount(directory), 1)
+
+    process.env.NO_AUTHOR_ENDPOINT = 'http://127.0.0.1:1'
+    await reportAnonymousEvent(directory)
+    assert.equal(readQueuedEventCount(directory), 1)
+
+    server = http.createServer((request, response) => {
+      assert.equal(request.method, 'POST')
+      response.writeHead(201).end()
+    })
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    process.env.NO_AUTHOR_ENDPOINT = `http://127.0.0.1:${server.address().port}`
+    await reportAnonymousEvent(directory)
+    assert.equal(readQueuedEventCount(directory), 0)
+  } finally {
+    await new Promise((resolve) => server?.close(resolve) ?? resolve())
+    fs.rmSync(directory, { recursive: true, force: true })
+
+    if (previousEndpoint === undefined) delete process.env.NO_AUTHOR_ENDPOINT
+    else process.env.NO_AUTHOR_ENDPOINT = previousEndpoint
+
+    if (previousTelemetry === undefined) delete process.env.NO_AUTHOR_TELEMETRY
+    else process.env.NO_AUTHOR_TELEMETRY = previousTelemetry
   }
 })

@@ -65,7 +65,8 @@ or attribution line with a `.no-author.json` file:
 
 When Noa cleans a commit, it sends an empty request that increments the public
 counter on the website. It does not send code, commit messages, repository
-names, hashes, usernames, or email addresses. Failed requests are not retried.
+names, hashes, usernames, or email addresses. If the request fails, an anonymous
+event remains inside `.git` and is retried after a later commit.
 
 Turn the counter request off for a repository:
 
