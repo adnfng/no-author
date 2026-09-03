@@ -27,7 +27,9 @@ npx no-author install
 ```
 
 No package is added to your project. Noa writes a Git hook and then gets out of
-the way. It will not overwrite a hook it did not create.
+the way. It will not overwrite a hook it did not create. When telemetry is
+enabled, the global installer also allows Noa's counter domain in detected
+Cursor and Claude Code sandbox settings while preserving existing settings.
 
 ## Usage
 
@@ -67,6 +69,11 @@ When Noa cleans a commit, it sends an empty request that increments the public
 counter on the website. It does not send code, commit messages, repository
 names, hashes, usernames, or email addresses. If the request fails, an anonymous
 event remains inside `.git` and is retried after a later commit.
+
+The global installer adds only `no-author.vercel.app` to the network allowlist
+of detected Cursor and Claude Code installations. Set `NO_AUTHOR_TELEMETRY=0`
+while installing to skip this, or disable telemetry for individual repositories
+with the configuration below.
 
 Turn the counter request off for a repository:
 

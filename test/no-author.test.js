@@ -6,6 +6,7 @@ const os = require('node:os')
 const path = require('node:path')
 const { execFileSync, spawn } = require('node:child_process')
 const {
+  addNestedArrayValue,
   cleanMessage,
   confirmAnonymousEvent,
   prepareAnonymousEvent,
@@ -31,6 +32,56 @@ function run(command, args, options) {
     })
   })
 }
+
+test('merges a counter domain into agent settings without replacing them', () => {
+  const config = {
+    networkPolicy: {
+      default: 'deny',
+      allow: ['registry.npmjs.org'],
+    },
+  }
+
+  assert.equal(
+    addNestedArrayValue(
+      config,
+      ['networkPolicy', 'allow'],
+      'no-author.vercel.app',
+    ),
+    true,
+  )
+  assert.deepEqual(config, {
+    networkPolicy: {
+      default: 'deny',
+      allow: ['registry.npmjs.org', 'no-author.vercel.app'],
+    },
+  })
+  assert.equal(
+    addNestedArrayValue(
+      config,
+      ['networkPolicy', 'allow'],
+      'no-author.vercel.app',
+    ),
+    false,
+  )
+})
+
+test('creates missing nested agent settings', () => {
+  const config = {}
+
+  addNestedArrayValue(
+    config,
+    ['sandbox', 'network', 'allowedDomains'],
+    'no-author.vercel.app',
+  )
+
+  assert.deepEqual(config, {
+    sandbox: {
+      network: {
+        allowedDomains: ['no-author.vercel.app'],
+      },
+    },
+  })
+})
 
 test('removes known AI co-author trailers', () => {
   const message = `Fix the thing
