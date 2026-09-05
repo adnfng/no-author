@@ -1,5 +1,5 @@
 <p>
-  <img src="https://noa.nomo.md/Logo.svg" alt="Noa" width="180">
+  <img src="https://noa.nomo.md/clanker.png" alt="Noa" width="180">
 </p>
 
 # Noa
