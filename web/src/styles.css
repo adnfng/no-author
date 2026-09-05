@@ -1,0 +1,254 @@
+:root {
+  color-scheme: light;
+  --color-bg: #fff;
+  --color-strong: #111;
+  --color-muted: #888;
+  --color-subtle: #f0f0f0;
+  --syntax-pink: #e9348b;
+  --syntax-green: #12a566;
+  --syntax-blue: #2684ff;
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: var(--font-sans);
+  color: var(--color-strong);
+  background: var(--color-bg);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+html::selection {
+  color: var(--color-bg);
+  background: var(--color-strong);
+}
+
+body,
+button {
+  font-family: var(--font-sans);
+}
+
+body {
+  color: var(--color-strong);
+  background: var(--color-bg);
+  font-size: 15px;
+}
+
+.site-page {
+  min-height: 100vh;
+  padding: 80px 20px;
+}
+
+.site-column {
+  width: 100%;
+  max-width: 672px;
+  margin-inline: auto;
+}
+
+.site-hero {
+  margin-bottom: 48px;
+}
+
+.site-logo-link {
+  display: block;
+  width: fit-content;
+  margin-bottom: 48px;
+}
+
+.site-logo {
+  display: block;
+  width: auto;
+  height: 100px;
+}
+
+.site-hero h1 {
+  margin: 0;
+  color: var(--color-strong);
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -.035em;
+  line-height: 0.88;
+  text-align: left;
+}
+
+.site-hero-line {
+  display: block;
+}
+
+.live-count {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+.site-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+
+.guide-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-margin-top: 32px;
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.guide-section h2,
+.guide-section p {
+  margin: 0;
+}
+
+.guide-section h2 {
+  color: var(--color-strong);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.guide-section p {
+  color: var(--color-muted);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.code-block {
+  position: relative;
+  width: 100%;
+  color: var(--color-strong);
+  background: var(--color-subtle);
+  border-radius: 2px;
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 8px 42px 8px 12px;
+  font: 400 13px/1.6 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.code-block code {
+  color: inherit;
+  font: inherit;
+}
+
+.command-prompt {
+  color: var(--color-muted);
+  user-select: none;
+}
+
+.syntax-pink {
+  color: var(--syntax-pink);
+}
+
+.syntax-green {
+  color: var(--syntax-green);
+}
+
+.syntax-blue {
+  color: var(--syntax-blue);
+}
+
+.code-copy-button {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  color: var(--color-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  opacity: 0;
+  transition: color .15s, background-color .15s, opacity .15s;
+}
+
+.code-block:hover .code-copy-button,
+.code-copy-button:focus-visible {
+  opacity: 1;
+}
+
+.code-copy-button:hover {
+  color: var(--color-strong);
+  background: #e5e5e5;
+}
+
+.code-copy-button svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.75;
+}
+
+.github-link {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  transition: color .15s;
+}
+
+.github-link:hover {
+  color: var(--color-strong);
+}
+
+.github-link svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (hover: none) {
+  .code-copy-button {
+    opacity: .7;
+  }
+}
+
+@media (max-width: 600px) {
+  .site-page {
+    padding: 56px 20px;
+  }
+
+  .site-hero h1 {
+    font-size: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .site-hero {
+    animation: hero-enter .55s ease-out both;
+  }
+
+  @keyframes hero-enter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
